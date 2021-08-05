@@ -3,7 +3,7 @@
 //
 
 #include "scheduler.h"
-#include "Usart.h"
+#include "Uart.h"
 #include "UsartScreen.h"
 #include "OMV_Thr.h"
 
