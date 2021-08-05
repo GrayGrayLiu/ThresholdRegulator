@@ -1,0 +1,487 @@
+Index: Lib/EasyFlash/easyflash/port/ef_port.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/Lib/EasyFlash/easyflash/port/ef_port.c b/Lib/EasyFlash/easyflash/port/ef_port.c
+--- a/Lib/EasyFlash/easyflash/port/ef_port.c	(revision ef3556f2026f7af6be2408d2cd9b4c5726d98df4)
++++ b/Lib/EasyFlash/easyflash/port/ef_port.c	(date 1628145834433)
+@@ -29,9 +29,15 @@
+ #include <easyflash.h>
+ #include <stdarg.h>
+ 
++
++#include "cmsis_gcc.h"
++#include "sfud.h"
++
++static uint8_t log_buf[128];
++
+ /* default environment variables set for user */
+ static const ef_env default_env_set[] = {
+-
++        {"name", "ThresholdRegulator", 0}
+ };
+ 
+ /**
+@@ -42,12 +48,21 @@
+  *
+  * @return result
+  */
+-EfErrCode ef_port_init(ef_env const **default_env, size_t *default_env_size) {
++EfErrCode ef_port_init(ef_env const **default_env, size_t *default_env_size)
++{
+     EfErrCode result = EF_NO_ERR;
+ 
+     *default_env = default_env_set;
+     *default_env_size = sizeof(default_env_set) / sizeof(default_env_set[0]);
+ 
++    sfud_err sfud_result = SFUD_SUCCESS;
++
++    sfud_result = sfud_init();
++
++    if (sfud_result != SFUD_SUCCESS) {
++        result = EF_READ_ERR;
++    }
++
+     return result;
+ }
+ 
+@@ -61,10 +76,19 @@
+  *
+  * @return result
+  */
+-EfErrCode ef_port_read(uint32_t addr, uint32_t *buf, size_t size) {
++EfErrCode ef_port_read(uint32_t addr, uint32_t *buf, size_t size)
++{
+     EfErrCode result = EF_NO_ERR;
+ 
+     /* You can add your code under here. */
++    const sfud_flash *flash = sfud_get_device_table() + SFUD_W25Q128_DEVICE_INDEX;
++    sfud_err sfud_result = SFUD_SUCCESS;
++
++    sfud_result = sfud_read(flash, addr, size, (uint8_t *) buf);
++
++    if (sfud_result != SFUD_SUCCESS) {
++        result = EF_READ_ERR;
++    }
+ 
+     return result;
+ }
+@@ -79,16 +103,26 @@
+  *
+  * @return result
+  */
+-EfErrCode ef_port_erase(uint32_t addr, size_t size) {
++EfErrCode ef_port_erase(uint32_t addr, size_t size)
++{
+     EfErrCode result = EF_NO_ERR;
+ 
+     /* make sure the start address is a multiple of EF_ERASE_MIN_SIZE */
+     EF_ASSERT(addr % EF_ERASE_MIN_SIZE == 0);
+ 
+     /* You can add your code under here. */
++    const sfud_flash *flash = sfud_get_device_table() + SFUD_W25Q128_DEVICE_INDEX;
++    sfud_err sfud_result = SFUD_SUCCESS;
++
++    sfud_result = sfud_erase(flash, addr, size);
++
++    if (sfud_result != SFUD_SUCCESS) {
++        result = EF_ERASE_ERR;
++    }
+ 
+     return result;
+ }
++
+ /**
+  * Write data to flash.
+  * @note This operation's units is word.
+@@ -100,30 +134,44 @@
+  *
+  * @return result
+  */
+-EfErrCode ef_port_write(uint32_t addr, const uint32_t *buf, size_t size) {
++EfErrCode ef_port_write(uint32_t addr, const uint32_t *buf, size_t size)
++{
+     EfErrCode result = EF_NO_ERR;
+-    
++
+     /* You can add your code under here. */
+ 
++    const sfud_flash *flash = sfud_get_device_table() + SFUD_W25Q128_DEVICE_INDEX;
++    sfud_err sfud_result = SFUD_SUCCESS;
++
++    sfud_result = sfud_write(flash, addr, size, (const uint8_t *) buf);
++
++    if (sfud_result != SFUD_SUCCESS) {
++        result = EF_WRITE_ERR;
++    }
++
+     return result;
+ }
+ 
+ /**
+  * lock the ENV ram cache
+  */
+-void ef_port_env_lock(void) {
+-    
++void ef_port_env_lock(void)
++{
++
+     /* You can add your code under here. */
+-    
++    __disable_irq();
++
+ }
+ 
+ /**
+  * unlock the ENV ram cache
+  */
+-void ef_port_env_unlock(void) {
+-    
++void ef_port_env_unlock(void)
++{
++
+     /* You can add your code under here. */
+-    
++    __enable_irq();
++
+ }
+ 
+ 
+@@ -136,7 +184,8 @@
+  * @param ... args
+  *
+  */
+-void ef_log_debug(const char *file, const long line, const char *format, ...) {
++void ef_log_debug(const char *file, const long line, const char *format, ...)
++{
+ 
+ #ifdef PRINT_DEBUG
+ 
+@@ -146,7 +195,12 @@
+     va_start(args, format);
+ 
+     /* You can add your code under here. */
+-    
++    ef_print("[Flash](%s:%ld) ", file, line);
++    /* must use vprintf to print */
++    vsprintf(log_buf, format, args);
++    ef_print("%s", log_buf);
++    printf("\r\n");
++
+     va_end(args);
+ 
+ #endif
+@@ -159,29 +213,39 @@
+  * @param format output format
+  * @param ... args
+  */
+-void ef_log_info(const char *format, ...) {
++void ef_log_info(const char *format, ...)
++{
+     va_list args;
+ 
+     /* args point to the first variable parameter */
+     va_start(args, format);
+ 
+     /* You can add your code under here. */
+-    
++    ef_print("[Flash]");
++    /* must use vprintf to print */
++    vsprintf(log_buf, format, args);
++    ef_print("%s", log_buf);
++    printf("\r\n");
++
+     va_end(args);
+ }
++
+ /**
+  * This function is print flash non-package info.
+  *
+  * @param format output format
+  * @param ... args
+  */
+-void ef_print(const char *format, ...) {
++void ef_print(const char *format, ...)
++{
+     va_list args;
+ 
+     /* args point to the first variable parameter */
+     va_start(args, format);
+ 
+     /* You can add your code under here. */
+-    
++    vsprintf(log_buf, format, args);
++    printf("%s", log_buf);
++
+     va_end(args);
+ }
+Index: Lib/SFUD/sfud/inc/sfud_cfg.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/Lib/SFUD/sfud/inc/sfud_cfg.h b/Lib/SFUD/sfud/inc/sfud_cfg.h
+--- a/Lib/SFUD/sfud/inc/sfud_cfg.h	(revision 33b5e5e68ef7e2fc6fc90d9c4a8ea763c38ac6c5)
++++ b/Lib/SFUD/sfud/inc/sfud_cfg.h	(date 1628145834443)
+@@ -35,13 +35,14 @@
+ 
+ #define SFUD_USING_FLASH_INFO_TABLE
+ 
+-enum {
+-    SFUD_XXXX_DEVICE_INDEX = 0,
++enum
++{
++    SFUD_W25Q128_DEVICE_INDEX = 0,
+ };
+ 
+ #define SFUD_FLASH_DEVICE_TABLE                                                \
+ {                                                                              \
+-    [SFUD_XXXX_DEVICE_INDEX] = {.name = "XXXX", .spi.name = "SPIX"},           \
++    [SFUD_W25Q128_DEVICE_INDEX] = {.name = "W25Q128", .spi.name = "SPI1"},           \
+ }
+ 
+ #define SFUD_USING_QSPI
+Index: Lib/SFUD/sfud/port/sfud_port.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/Lib/SFUD/sfud/port/sfud_port.c b/Lib/SFUD/sfud/port/sfud_port.c
+--- a/Lib/SFUD/sfud/port/sfud_port.c	(revision 33b5e5e68ef7e2fc6fc90d9c4a8ea763c38ac6c5)
++++ b/Lib/SFUD/sfud/port/sfud_port.c	(date 1628145441759)
+@@ -28,6 +28,14 @@
+ 
+ #include <sfud.h>
+ #include <stdarg.h>
++#include "stm32f4xx_hal.h"
++
++typedef struct
++{
++    SPI_HandleTypeDef *spix;
++    GPIO_TypeDef *cs_gpiox;
++    uint16_t cs_gpio_pin;
++} spi_user_data, *spi_user_data_t;
+ 
+ static char log_buf[256];
+ 
+@@ -37,7 +45,8 @@
+  * SPI write data then read data
+  */
+ static sfud_err spi_write_read(const sfud_spi *spi, const uint8_t *write_buf, size_t write_size, uint8_t *read_buf,
+-        size_t read_size) {
++                               size_t read_size)
++{
+     sfud_err result = SFUD_SUCCESS;
+     uint8_t send_data, read_data;
+ 
+@@ -45,15 +54,62 @@
+      * add your spi write and read code
+      */
+ 
++    spi_user_data_t spi_dev = (spi_user_data_t) spi->user_data;
++
++    if (write_size) {
++        SFUD_ASSERT(write_buf);
++    }
++    if (read_size) {
++        SFUD_ASSERT(read_buf);
++    }
++
++    HAL_GPIO_WritePin(spi_dev->cs_gpiox, spi_dev->cs_gpio_pin, GPIO_PIN_RESET);
++    /* 开始读写数据 */
++    for (size_t i = 0, retry_times; i < write_size + read_size; i++) {
++        /* 先写缓冲区中的数据到 SPI 总线，数据写完后，再写 dummy(0xFF) 到 SPI 总线 */
++        if (i < write_size) {
++            send_data = *write_buf++;
++        } else {
++            send_data = SFUD_DUMMY_DATA;
++        }
++        /* 发送数据 */
++        retry_times = 1000;
++        while (__HAL_SPI_GET_FLAG(spi_dev->spix, SPI_FLAG_TXE) == RESET) {
++            SFUD_RETRY_PROCESS(NULL, retry_times, result);
++        }
++        if (result != SFUD_SUCCESS) {
++            goto exit;
++        }
++        spi_dev->spix->Instance->DR = send_data;
++        /* 接收数据 */
++        retry_times = 1000;
++        while (__HAL_SPI_GET_FLAG(spi_dev->spix, SPI_FLAG_RXNE) == RESET) {
++            SFUD_RETRY_PROCESS(NULL, retry_times, result);
++        }
++        if (result != SFUD_SUCCESS) {
++            goto exit;
++        }
++        read_data = spi_dev->spix->Instance->DR;
++        /* 写缓冲区中的数据发完后，再读取 SPI 总线中的数据到读缓冲区 */
++        if (i >= write_size) {
++            *read_buf++ = read_data;
++        }
++    }
++
++    exit:
++    HAL_GPIO_WritePin(spi_dev->cs_gpiox, spi_dev->cs_gpio_pin, GPIO_PIN_SET);
++
+     return result;
+ }
+ 
+ #ifdef SFUD_USING_QSPI
++
+ /**
+  * read flash data by QSPI
+  */
+ static sfud_err qspi_read(const struct __sfud_spi *spi, uint32_t addr, sfud_qspi_read_cmd_format *qspi_read_cmd_format,
+-        uint8_t *read_buf, size_t read_size) {
++                          uint8_t *read_buf, size_t read_size)
++{
+     sfud_err result = SFUD_SUCCESS;
+ 
+     /**
+@@ -62,9 +118,30 @@
+ 
+     return result;
+ }
++
+ #endif /* SFUD_USING_QSPI */
+ 
+-sfud_err sfud_spi_port_init(sfud_flash *flash) {
++static void spi_lock(const sfud_spi *spi)
++{
++    __disable_irq();
++}
++
++static void spi_unlock(const sfud_spi *spi)
++{
++    __enable_irq();
++}
++
++static void retry_delay_100us(void)
++{
++    uint32_t delay = 16800;
++    while (delay--);
++}
++
++extern SPI_HandleTypeDef hspi1;
++static spi_user_data spi1 = {.spix = &hspi1, .cs_gpiox = GPIOC, .cs_gpio_pin = GPIO_PIN_4};
++
++sfud_err sfud_spi_port_init(sfud_flash *flash)
++{
+     sfud_err result = SFUD_SUCCESS;
+ 
+     /**
+@@ -82,6 +159,23 @@
+      *    flash->retry.times = 10000; //Required
+      */
+ 
++    switch (flash->index) {
++        case SFUD_W25Q128_DEVICE_INDEX: {
++            __HAL_SPI_ENABLE(&hspi1);
++            /* 同步 Flash 移植所需的接口及数据 */
++            flash->spi.wr = spi_write_read;
++            flash->spi.lock = spi_lock;
++            flash->spi.unlock = spi_unlock;
++            flash->spi.user_data = &spi1;
++            /* about 100 microsecond delay */
++            flash->retry.delay = retry_delay_100us;
++            /* adout 10 seconds timeout */
++            flash->retry.times = 10 * 100;
++
++            break;
++        }
++    }
++
+     return result;
+ }
+ 
+@@ -93,7 +187,8 @@
+  * @param format output format
+  * @param ... args
+  */
+-void sfud_log_debug(const char *file, const long line, const char *format, ...) {
++void sfud_log_debug(const char *file, const long line, const char *format, ...)
++{
+     va_list args;
+ 
+     /* args point to the first variable parameter */
+@@ -101,7 +196,7 @@
+     printf("[SFUD](%s:%ld) ", file, line);
+     /* must use vprintf to print */
+     vsnprintf(log_buf, sizeof(log_buf), format, args);
+-    printf("%s\n", log_buf);
++    printf("%s\r\n", log_buf);
+     va_end(args);
+ }
+ 
+@@ -111,7 +206,8 @@
+  * @param format output format
+  * @param ... args
+  */
+-void sfud_log_info(const char *format, ...) {
++void sfud_log_info(const char *format, ...)
++{
+     va_list args;
+ 
+     /* args point to the first variable parameter */
+@@ -119,6 +215,6 @@
+     printf("[SFUD]");
+     /* must use vprintf to print */
+     vsnprintf(log_buf, sizeof(log_buf), format, args);
+-    printf("%s\n", log_buf);
++    printf("%s\r\n", log_buf);
+     va_end(args);
+ }
+Index: Lib/EasyFlash/easyflash/inc/ef_cfg.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/Lib/EasyFlash/easyflash/inc/ef_cfg.h b/Lib/EasyFlash/easyflash/inc/ef_cfg.h
+--- a/Lib/EasyFlash/easyflash/inc/ef_cfg.h	(revision ef3556f2026f7af6be2408d2cd9b4c5726d98df4)
++++ b/Lib/EasyFlash/easyflash/inc/ef_cfg.h	(date 1628145834449)
+@@ -30,7 +30,7 @@
+ #define EF_CFG_H_
+ 
+ /* using ENV function, default is NG (Next Generation) mode start from V4.0 */
+-#define EF_USING_ENV
++#define EF_USING_ENV    0
+ 
+ #ifdef EF_USING_ENV
+ /* Auto update ENV to latest default when current ENV version number is changed. */
+@@ -39,7 +39,7 @@
+  * ENV version number defined by user.
+  * Please change it when your firmware add a new ENV to default_env_set.
+  */
+-#define EF_ENV_VER_NUM            /* @note you must define it for a value, such as 0 */
++#define EF_ENV_VER_NUM  0            /* @note you must define it for a value, such as 0 */
+  
+ /* MCU Endian Configuration, default is Little Endian Order. */
+ /* #define EF_BIG_ENDIAN  */         
+@@ -53,11 +53,11 @@
+ /* #define EF_USING_LOG */
+ 
+ /* The minimum size of flash erasure. May be a flash sector size. */
+-#define EF_ERASE_MIN_SIZE         /* @note you must define it for a value */
++#define EF_ERASE_MIN_SIZE   4096         /* @note you must define it for a value */
+ 
+ /* the flash write granularity, unit: bit
+  * only support 1(nor flash)/ 8(stm32f4)/ 32(stm32f1) */
+-#define EF_WRITE_GRAN             /* @note you must define it for a value */
++#define EF_WRITE_GRAN   1             /* @note you must define it for a value */
+ 
+ /*
+  *
+@@ -81,10 +81,10 @@
+  */
+ 
+ /* backup area start address */
+-#define EF_START_ADDR             /* @note you must define it for a value */
++#define EF_START_ADDR   (0)             /* @note you must define it for a value */
+ 
+ /* ENV area size. It's at least one empty sector for GC. So it's definition must more then or equal 2 flash sector size. */
+-#define ENV_AREA_SIZE             /* @note you must define it for a value if you used ENV */
++#define ENV_AREA_SIZE   (4096 * EF_ERASE_MIN_SIZE)             /* @note you must define it for a value if you used ENV */
+ 
+ /* saved log area size */
+ #define LOG_AREA_SIZE             /* @note you must define it for a value if you used log */
