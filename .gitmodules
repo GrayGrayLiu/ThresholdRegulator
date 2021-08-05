@@ -1,0 +1,6 @@
+[submodule "Lib/SFUD"]
+	path = Lib/SFUD
+	url = https://github.com/armink/SFUD.git
+[submodule "Lib/EasyFlash"]
+	path = Lib/EasyFlash
+	url = https://github.com/armink/EasyFlash.git
