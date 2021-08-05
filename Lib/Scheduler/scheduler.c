@@ -6,6 +6,7 @@
 #include "Uart.h"
 #include "UsartScreen.h"
 #include "OMV_Thr.h"
+#include "db.h"
 
 static void Loop_1000Hz(void) //1ms执行一次
 {
@@ -49,7 +50,7 @@ static void Loop_50Hz(void) //20ms执行一次
 static void Loop_20Hz(void) //50ms执行一次
 {
     //////////////////////////////////////////////////////////////////////
-
+    db_task();
     //////////////////////////////////////////////////////////////////////
 }
 
