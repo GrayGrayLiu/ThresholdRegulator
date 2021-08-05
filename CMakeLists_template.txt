@@ -51,10 +51,7 @@ include_directories(${includes}
                     Lib/Uart
                     Lib/UsartScreen
                     Lib/OMV_Thr
-                    Lib/Scheduler
-                    Lib/SFUD/sfud/inc
-                    Lib/EasyFlash/easyflash/inc
-                    )
+                    Lib/Scheduler)
 
 add_definitions(${defines})
 
@@ -64,11 +61,7 @@ file(GLOB_RECURSE SOURCES ${sources}
                     "Lib/Uart/*.*"
                     "Lib/UsartScreen/*.*"
                     "Lib/OMV_Thr/*.*"
-                    "Lib/Scheduler/*.*"
-                    "Lib/SFUD/sfud/*.c"
-                    "Lib/EasyFlash/easyflash/port/*.c"
-                    "Lib/EasyFlash/easyflash/src/*.c"
-                    )
+                    "Lib/Scheduler/*.*")
 
 set(LINKER_SCRIPT $${CMAKE_SOURCE_DIR}/${linkerScript})
 

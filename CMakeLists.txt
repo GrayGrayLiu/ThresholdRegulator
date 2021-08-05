@@ -52,10 +52,7 @@ include_directories(Core/Inc Drivers/STM32F4xx_HAL_Driver/Inc Drivers/STM32F4xx_
                     Lib/Uart
                     Lib/UsartScreen
                     Lib/OMV_Thr
-                    Lib/Scheduler
-                    Lib/SFUD/sfud/inc
-                    Lib/EasyFlash/easyflash/inc
-                    )
+                    Lib/Scheduler)
 
 add_definitions(-DUSE_HAL_DRIVER -DSTM32F407xx)
 
@@ -65,11 +62,7 @@ file(GLOB_RECURSE SOURCES "startup/*.*" "Drivers/*.*" "Core/*.*"
                     "Lib/Uart/*.*"
                     "Lib/UsartScreen/*.*"
                     "Lib/OMV_Thr/*.*"
-                    "Lib/Scheduler/*.*"
-                    "Lib/SFUD/sfud/*.c"
-                    "Lib/EasyFlash/easyflash/port/*.c"
-                    "Lib/EasyFlash/easyflash/src/*.c"
-                    )
+                    "Lib/Scheduler/*.*")
 
 set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/STM32F407ZGTx_FLASH.ld)
 
